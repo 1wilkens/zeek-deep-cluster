@@ -1,0 +1,5 @@
+[package]
+description = Deepcluster support
+tags = cluster, groups
+version = 0.1.0
+script_dir = scripts
