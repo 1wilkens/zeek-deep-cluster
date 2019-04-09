@@ -1,5 +1,3 @@
-@load ./deepcluster
+@load ./main
 
-event bro_init() {
-    print("[LOAD] deepcluster");
-}
+@load deepcluster-layout
