@@ -1,3 +1,3 @@
 @load ./main
 
-@load deepcluster-layout
+@load deepcluster-info
