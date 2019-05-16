@@ -39,14 +39,14 @@ export {
         interface:    string      &optional;
         ## A unique identifier assigned to the node by the broker framework.
         ## This field is only set while a node is connected.
-        id: string                &optional;
+        id:           string      &optional;
 
         # Set of groups the node belongs to.
         # Defaults to empty set to simplify initialization
-        groups: set[string] &default=set();
+        groups:       set[string] &default=set();
         # Set of groups the node acts as a parent of.
         # Defaults to empty set to simplify initialization
-        parent: set[string] &default=set();
+        parent:       set[string] &default=set();
     };
 
     # VARIABLES
@@ -183,7 +183,6 @@ event zeek_init() &priority=5 {
 
     # Also forward the global status topic XXX: Maybe revisit this
     Broker::forward(topic_prefix + "status");
-    #Broker::forward(node_topic_prefix);
 
     # Listen for incoming connections
     Broker::listen();
@@ -207,6 +206,14 @@ event Broker::peer_removed(endpoint: Broker::EndpointInfo, _: string) {
     local _remote_id = endpoint$id;
     local _remote_ip = endpoint$network$address;
     _log(fmt("[main.bro] Broker::peer_removed: %s@%s", _remote_id, _remote_ip));
+
+    delete peer_ids[_remote_id];
+}
+
+event Broker::peer_lost(endpoint: Broker::EndpointInfo, _: string) {
+    local _remote_id = endpoint$id;
+    local _remote_ip = endpoint$network$address;
+    _log(fmt("[main.bro] Broker::peer_lost: %s@%s", _remote_id, _remote_ip));
 
     delete peer_ids[_remote_id];
 }
