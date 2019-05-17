@@ -1,6 +1,0 @@
-# Ignore all scripts + Makefile
-*.sh
-Makefile
-
-# Ignore local.bro
-local.bro
