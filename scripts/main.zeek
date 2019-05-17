@@ -100,7 +100,7 @@ function _log(msg: string) {
 }
 
 function _subscribe(topic: string) {
-    _log(fmt("[main.bro] => Subscribing to %s", topic));
+    _log(fmt("[cluster/main] => Subscribing to %s", topic));
     Broker::subscribe(topic);
 }
 
@@ -134,14 +134,14 @@ function _get_peer_topics(sender: string): set[string] {
 }
 
 function create_group(group: string) {
-    _log(fmt("[main.bro] Creating group '%s'", group));
+    _log(fmt("[cluster/main] Creating group '%s'", group));
     _subscribe(group_topic(group));
     _subscribe(parent_topic(group));
     DeepCluster::groups[group] = T;
 }
 
 function join_group(group: string) {
-    _log(fmt("[main.bro] Joining group '%s'", group));
+    _log(fmt("[cluster/main] Joining group '%s'", group));
     local _e = Broker::make_event(DeepCluster::group_join_request, group, self$id, self$id, self$id);
     for (_p in DeepCluster::peer_ids) {
         Broker::publish(node_topic(_p), _e);
@@ -149,11 +149,11 @@ function join_group(group: string) {
 }
 
 function _connect_initial_peers() {
-    _log(fmt("[main.bro] Connecting to %d initial peer(s)", |peers|));
+    _log(fmt("[cluster/main] Connecting to %d initial peer(s)", |peers|));
     for (i in peers) {
         local _peer = peers[i];
         local _res = Broker::peer(cat(_peer$ip), _peer$p);
-        _log(fmt("[main.bro] => Peering to %s:%d aka %s", cat(_peer$ip), _peer$p, _peer$name));
+        _log(fmt("[cluster/main] => Peering to %s:%d aka %s", cat(_peer$ip), _peer$p, _peer$name));
     }
 }
 
@@ -169,12 +169,12 @@ event _setup_initial_groups() {
 }
 
 event zeek_init() &priority=5 {
-    _log("[main.bro] Begin zeek_init()");
+    _log("[cluster/main] Begin zeek_init()");
 
     # Set our own id in the Node
     self$id = Broker::node_id();
 
-    _log(fmt("[main.bro] Hi, I'm '%s' aka %s", self$name, self$id));
+    _log(fmt("[cluster/main] Hi, I'm '%s' aka %s", self$name, self$id));
 
     # Listen on our node topic
     _subscribe(node_topic(self$id));
@@ -191,13 +191,13 @@ event zeek_init() &priority=5 {
     _connect_initial_peers();
     schedule 5sec { DeepCluster::_setup_initial_groups() };
 
-    _log("[main.bro] Finished zeek_init()");
+    _log("[cluster/main] Finished zeek_init()");
 }
 
 event Broker::peer_added(endpoint: Broker::EndpointInfo, _: string) {
     local _remote_id = endpoint$id;
     local _remote_ip = endpoint$network$address;
-    _log(fmt("[main.bro] Broker::peer_added: %s@%s", _remote_id, _remote_ip));
+    _log(fmt("[cluster/main] Broker::peer_added: %s@%s", _remote_id, _remote_ip));
 
     add peer_ids[_remote_id];
 }
@@ -205,7 +205,7 @@ event Broker::peer_added(endpoint: Broker::EndpointInfo, _: string) {
 event Broker::peer_removed(endpoint: Broker::EndpointInfo, _: string) {
     local _remote_id = endpoint$id;
     local _remote_ip = endpoint$network$address;
-    _log(fmt("[main.bro] Broker::peer_removed: %s@%s", _remote_id, _remote_ip));
+    _log(fmt("[cluster/main] Broker::peer_removed: %s@%s", _remote_id, _remote_ip));
 
     delete peer_ids[_remote_id];
 }
@@ -213,13 +213,13 @@ event Broker::peer_removed(endpoint: Broker::EndpointInfo, _: string) {
 event Broker::peer_lost(endpoint: Broker::EndpointInfo, _: string) {
     local _remote_id = endpoint$id;
     local _remote_ip = endpoint$network$address;
-    _log(fmt("[main.bro] Broker::peer_lost: %s@%s", _remote_id, _remote_ip));
+    _log(fmt("[cluster/main] Broker::peer_lost: %s@%s", _remote_id, _remote_ip));
 
     delete peer_ids[_remote_id];
 }
 
 event DeepCluster::get_state() {
-    _log("[main.bro] DeepCluster::get_state");
+    _log("[cluster/main] DeepCluster::get_state");
     local _groups: set[string] = set();
     for (_g in DeepCluster::groups) {
         add _groups[_g];
@@ -234,7 +234,7 @@ event DeepCluster::get_state() {
 }
 
 event DeepCluster::group_join_request(group: string, node_id: string, sender: string, last_group_node: string) {
-    #_log(fmt("[main.bro] DeepCluster::group_join_request for group '%s', node_id=%s, sender=%s, last_group_node=%s", group, node_id, sender, last_group_node));
+    #_log(fmt("[cluster/main] DeepCluster::group_join_request for group '%s', node_id=%s, sender=%s, last_group_node=%s", group, node_id, sender, last_group_node));
     local _topics: set[string] = set();
 
     if (group in groups) {
@@ -244,7 +244,7 @@ event DeepCluster::group_join_request(group: string, node_id: string, sender: st
 
             if (can_take_child()) {
                 # We can take in the child -> publish `group_join_confirm`
-                _log(fmt("[main.bro] Accepting child for group '%s' (id=%s)", group, node_id));
+                _log(fmt("[cluster/main] Accepting child for group '%s' (id=%s)", group, node_id));
 
                 if (group !in children) {
                     children[group] = table();
@@ -258,7 +258,7 @@ event DeepCluster::group_join_request(group: string, node_id: string, sender: st
             }
             else {
                 # We cannot take in the child -> initiate `handover_request`
-                _log(fmt("[main.bro] Initiating handover for group '%s' to %s", group, last_group_node));
+                _log(fmt("[cluster/main] Initiating handover for group '%s' to %s", group, last_group_node));
 
                 local _nodes: set[string] = set();
                 if (group in children && last_group_node in children[group]) {
@@ -274,7 +274,7 @@ event DeepCluster::group_join_request(group: string, node_id: string, sender: st
             local gjr = Broker::make_event(DeepCluster::group_join_request, group, node_id, self$id, self$id);
             _topics = _get_peer_topics(sender);
             for (_t in _topics) {
-                _log(fmt("[main.bro] Publishing updated group_join_request by %s for group '%s' to %s", node_id, group, _t));
+                _log(fmt("[cluster/main] Publishing updated group_join_request by %s for group '%s' to %s", node_id, group, _t));
                 Broker::publish(_t, gjr);
             }
         }
@@ -284,7 +284,7 @@ event DeepCluster::group_join_request(group: string, node_id: string, sender: st
         local fwd = Broker::make_event(DeepCluster::group_join_request, group, node_id, self$id, last_group_node);
         _topics = _get_peer_topics(sender);
         for (_t in _topics) {
-            _log(fmt("[main.bro] Forwarding group_join_request by %s for group '%s' to %s", node_id, group, _t));
+            _log(fmt("[cluster/main] Forwarding group_join_request by %s for group '%s' to %s", node_id, group, _t));
             Broker::publish(_t, fwd);
         }
     }
@@ -293,22 +293,22 @@ event DeepCluster::group_join_request(group: string, node_id: string, sender: st
 event DeepCluster::group_join_confirm(group: string) {
     # XXX: possibly verify this?
     if (group !in groups) {
-        _log(fmt("[main.bro] Confirming group membership for group '%s'", group));
+        _log(fmt("[cluster/main] Confirming group membership for group '%s'", group));
         groups[group] = F;
     }
     else {
-        _log(fmt("[main.bro] Got unexpected group_join_confirm for group '%s' which I already joined", group));
+        _log(fmt("[cluster/main] Got unexpected group_join_confirm for group '%s' which I already joined", group));
     }
 
 }
 
 event DeepCluster::handover_request(group: string, node_ids: set[string]) {
-    _log(fmt("[main.bro] DeepCluster::handover_request: %s (%d)", group, |node_ids|));
+    _log(fmt("[cluster/main] DeepCluster::handover_request: %s (%d)", group, |node_ids|));
 
     local num_nodes = |node_ids|;
 }
 
 event DeepCluster::handover_confirm(group: string, node_ids: set[string]) {
-    _log(fmt("[main.bro] DeepCluster::handover_confirm: %s (%d)", group, |node_ids|));
+    _log(fmt("[cluster/main] DeepCluster::handover_confirm: %s (%d)", group, |node_ids|));
 }
 
